@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "notes": {
+    "status": "骨架步通道表：kilo 已按需求节点给出的地址接入；space-bunny / sensenova 的 base 用环境变量覆盖；jev（decide）是死档 disabled；merge/triage/audit/ingest-runner（dispatch）挂在表里，等一个执行器网关，任何池都不收录它们",
+    "env": "值里的 ${VAR} 与 ${VAR:-default} 在加载时展开；未设置且无默认值的变量展开成空串并记一条 warning。展开只作用于 channels / defaults / pools 三个字段",
+    "types": "type 区分三种通道。chat = 生成型，答 /chat/completions；decide = 选择型（JEV 一类），答 /v1/decide，只给结构化裁决不给自由文本；dispatch = 执行单元（send session），答 /chat/completions 但收的是 session 体（task + session + context），由 decide 的裁决点名才到，绝不进 fallback 顺序",
+    "space-bunny": "space-bunny-free 在 dsh-our-free-model 里是 opencode 免费目录的模型 id，独立网关地址未经核实——先用 MODEL_SELECT_SPACE_BUNNY_BASE 指向真实地址，别猜",
+    "jev": "本地 jev-1.13-free 是死档（404），所以 jev 通道 disabled: true——挂在表里当文档，不被池收录、也不被裸模型名扇出命中。指向真实 /v1/decide 端点并去掉 disabled 即可启用；decide 池会自动把它排到 chat 池前面",
+    "dispatch": "dispatch 通道声称它执行的 operation：裁决点到的 operation 命中谁，就把任务发给谁。一个 operation 只归属第一个声称它的通道，所以配置无法把一件事悄悄派给两个会话。池永远不收 dispatch——执行单元不是兜底候选。它们的 base 指向执行器网关，未部署前任何一次派发都会 TRANSPORT 失败并降级到 chat 池末端",
+    "preset": "defaults.preset 是纪律注入：每个生成型的 body 都会带上「预设 + 近况说明」的 system 消息，这是防遗忘的那一层——模型忘了上一轮，这一轮也会把纪律和当前状态重述一遍。请求里的 preset / status 字段可逐次覆盖",
+    "loop": "defaults.loopMs 是无人值守巡逻的间隔：到点巡检待办（merge 就绪的 PR / 会话卡死 / 账本结算 / 知识落库），把该做的按 operation 派给声称它的 dispatch 执行单元。0（默认）表示关掉——这一层不该因为配置文件写了个数字就开始自己拨号执行器。巡检逻辑不在这层：插件提供 api.loop 和 apply 的 inspect 参数，谁来报待办谁实现。同一件待办（按 key 去重）不会被重复派发；执行器失败按 retryAfterMs 重试，成功按 suppressMs 静默。与 DSH schedule 的关系：插件自跑自己的钟，同时暴露 tick() 让外部调度器（DSH schedule / cron / 按钮）驱动一次巡检；两者同时跑由去重保证不重复派发",
+    "choice": "请求体的 choice / selection 是 1-based 数字键，直接锁定候选列表第 N 个，跳过 JEV/decide 和 fallback 走查——人工指定优先于路由器。越界报 400 并列出完整菜单。response 头部 x-select-choice: N/M 与 x-select-menu 记录人工的选择和当时可选的完整菜单"
+  },
+  "defaults": {
+    "timeoutMs": 60000,
+    "availabilityTtlMs": 60000,
+    "maxAttempts": 4,
+    "loopMs": 0,
+    "headers": {
+      "user-agent": "dsh-model-select/0.1.0"
+    },
+    "decidePool": "decide",
+    "fallbackPool": "fast-free",
+    "preset": [
+      "有 merge 就 merge（合并能合并的，别为形式拆两次）",
+      "有问题就处理（发现了问题先处理，别只记录）",
+      "没事做就审计（空档用于盘点，不用于等待）",
+      "知识要录入（新结论落到知识节点，不留在会话里）",
+      "不确定就说「不确定」并说明缺什么（不要猜，别用形容词代替证据）"
+    ]
+  },
+  "channels": {
+    "kilo": {
+      "baseUrl": "${MODEL_SELECT_KILO_BASE:-https://REPLACE-ME/api/v2/kilo/v1}",
+      "path": "chat/completions",
+      "type": "chat",
+      "defaultModel": "deepseek-v4.1-flash",
+      "models": [
+        "deepseek-v4.1-flash",
+        "kimi-k3",
+        "gpt-5-nano"
+      ],
+      "auth": {
+        "type": "bearer",
+        "token": "${KILO_API_TOKEN}"
+      },
+      "headers": {
+        "user-agent": "dsh-model-select/0.1.0"
+      }
+    },
+    "space-bunny": {
+      "baseUrl": "${MODEL_SELECT_SPACE_BUNNY_BASE:-https://api.spacebunny.ai/v1}",
+      "path": "chat/completions",
+      "type": "chat",
+      "defaultModel": "space-bunny-free",
+      "models": [
+        "space-bunny-free"
+      ],
+      "auth": {
+        "type": "bearer",
+        "token": "${MODEL_SELECT_SPACE_BUNNY_TOKEN}"
+      }
+    },
+    "sensenova": {
+      "baseUrl": "${MODEL_SELECT_SENSENOVA_BASE:-https://api.sensenova.cn/v1}",
+      "path": "chat/completions",
+      "type": "chat",
+      "defaultModel": "sensenova-6.8-flash-lite",
+      "models": [
+        "sensenova-6.8-flash-lite"
+      ],
+      "auth": {
+        "type": "bearer",
+        "token": "${SENSENOVA_API_TOKEN}"
+      }
+    },
+    "jev": {
+      "type": "decide",
+      "baseUrl": "${MODEL_SELECT_JEV_BASE:-https://api.typosafe.ai/v1}",
+      "path": "decide",
+      "defaultModel": "jev-1.13-free",
+      "models": [
+        "jev-1.13-free"
+      ],
+      "disabled": true,
+      "auth": {
+        "type": "bearer",
+        "token": "${MODEL_SELECT_JEV_TOKEN}"
+      },
+      "decideBody": {
+        "output": "decision"
+      }
+    },
+    "merge-runner": {
+      "type": "dispatch",
+      "baseUrl": "${MODEL_SELECT_EXECUTOR_BASE:-http://127.0.0.1:8788/v1}",
+      "path": "chat/completions",
+      "defaultModel": "deepseek-v4.1-flash",
+      "models": [
+        "deepseek-v4.1-flash"
+      ],
+      "session": "merge-runner",
+      "operations": [
+        "merge"
+      ],
+      "auth": {
+        "type": "bearer",
+        "token": "${MODEL_SELECT_EXECUTOR_TOKEN}"
+      },
+      "dispatchBody": {
+        "stream": false
+      }
+    },
+    "triage-runner": {
+      "type": "dispatch",
+      "baseUrl": "${MODEL_SELECT_EXECUTOR_BASE:-http://127.0.0.1:8788/v1}",
+      "path": "chat/completions",
+      "defaultModel": "deepseek-v4.1-flash",
+      "models": [
+        "deepseek-v4.1-flash"
+      ],
+      "session": "triage-runner",
+      "operations": [
+        "triage"
+      ],
+      "auth": {
+        "type": "bearer",
+        "token": "${MODEL_SELECT_EXECUTOR_TOKEN}"
+      },
+      "dispatchBody": {
+        "stream": false
+      }
+    },
+    "audit-runner": {
+      "type": "dispatch",
+      "baseUrl": "${MODEL_SELECT_EXECUTOR_BASE:-http://127.0.0.1:8788/v1}",
+      "path": "chat/completions",
+      "defaultModel": "kimi-k3",
+      "models": [
+        "kimi-k3"
+      ],
+      "session": "audit-runner",
+      "operations": [
+        "audit"
+      ],
+      "auth": {
+        "type": "bearer",
+        "token": "${MODEL_SELECT_EXECUTOR_TOKEN}"
+      },
+      "dispatchBody": {
+        "stream": false
+      }
+    },
+    "ingest-runner": {
+      "type": "dispatch",
+      "baseUrl": "${MODEL_SELECT_EXECUTOR_BASE:-http://127.0.0.1:8788/v1}",
+      "path": "chat/completions",
+      "defaultModel": "deepseek-v4.1-flash",
+      "models": [
+        "deepseek-v4.1-flash"
+      ],
+      "session": "ingest-runner",
+      "operations": [
+        "ingest"
+      ],
+      "auth": {
+        "type": "bearer",
+        "token": "${MODEL_SELECT_EXECUTOR_TOKEN}"
+      },
+      "dispatchBody": {
+        "stream": false
+      }
+    }
+  },
+  "pools": {
+    "fast-free": [
+      "kilo",
+      "space-bunny"
+    ],
+    "all": [
+      "kilo",
+      "space-bunny",
+      "sensenova"
+    ],
+    "decide": [
+      "jev"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+# dsh-model-select bundle patch.
+#
+# 骨架步刻意保持最小：一行 insert 声明插件身份，config 留空，通道表走
+# config/channels.json，不占用 DSH profile 的任何设置位。DSH 部署步再补
+# 端口、鉴权、池与工作选项的 UI 声明。
+- insert:
+    - id: model-select
+      name: 'dsh-model-select'
+      config: {}

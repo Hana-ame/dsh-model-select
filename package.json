@@ -1,0 +1,62 @@
+{
+  "name": "dsh-model-select",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "model-select 兼容层：对外伪装成 OpenAI 兼容 /v1/chat/completions，并用 select() 在候选通道上做可用性过滤与失败回退；带 decision 字段的请求走 decide 通道（JEV 一类）拿结构化裁决，点中操作则交接给 dispatch 执行单元 send session，无法处理降级到 chat 尾巴且必然带上预设与近况说明。也作为 DSH provider 注册（session_create provider=\"model-select\"）。可靠行为由骨架保证，不依赖模型自觉。",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./src/select": "./src/select.js",
+    "./src/channels": "./src/channels.js",
+    "./src/availability": "./src/availability.js",
+    "./src/spec": "./src/spec.js",
+    "./src/forward": "./src/forward.js",
+    "./package.json": "./package.json",
+    "./src/errors": "./src/errors.js",
+    "./src/intent": "./src/intent.js",
+    "./src/stream": "./src/stream.js",
+    "./src/upstream": "./src/upstream.js",
+    "./src/context": "./src/context.js",
+    "./src/operations": "./src/operations.js",
+    "./src/adapter": "./src/adapter.js",
+    "./src/routing": "./src/routing.js",
+    "./src/selection": "./src/selection.js",
+    "./src/loop": "./src/loop.js"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:select": "node --test test/select.test.js",
+    "test:handler": "node --test test/handler.test.js",
+    "test:config": "node --test test/config.test.js",
+    "serve": "node index.js --serve",
+    "test:decide": "node --test test/decide.test.js",
+    "test:operations": "node --test test/operations.test.js",
+    "test:adapter": "node --test test/adapter.test.js",
+    "test:conformance": "node --test test/conformance.test.js",
+    "test:selection": "node --test test/selection.test.js",
+    "test:loop": "node --test test/loop.test.js"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "fallback",
+    "llm-provider",
+    "model-select",
+    "openai-compatible",
+    "router"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/dsh-llm": "^0.1.2-rc.1 || ^0.1.7-rc.2 || ^0.2.0-rc.1"
+  }
+}
