@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Model Select Compat Layer",
+    "description": "An OpenAI-compatible /v1/chat/completions facade that routes by intent: availability filtering and failure fallback across candidate channels, structured decisions on /v1/decide, and handoff to dispatch executor sessions, degrading to chat only when no operation matches."
+  }
+}

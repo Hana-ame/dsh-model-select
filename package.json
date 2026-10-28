@@ -22,7 +22,8 @@
     "./src/adapter": "./src/adapter.js",
     "./src/routing": "./src/routing.js",
     "./src/selection": "./src/selection.js",
-    "./src/loop": "./src/loop.js"
+    "./src/loop": "./src/loop.js",
+    "./locale/*.json": "./locale/*.json"
   },
   "scripts": {
     "test": "node --test test/*.test.js",

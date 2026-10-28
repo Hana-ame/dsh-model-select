@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "模型选择兼容层",
+    "description": "对外伪装成 OpenAI 兼容 /v1/chat/completions 的兼容层：按意图路由，在候选通道上做可用性过滤与失败回退，decision 请求走 /v1/decide 拿结构化裁决再交给 dispatch 执行单元，无法处理才降级到聊天。"
+  }
+}
